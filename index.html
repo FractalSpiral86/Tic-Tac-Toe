@@ -31,6 +31,7 @@
       color:var(--text);
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       padding:24px;
+      overflow:hidden; /* needed for confetti */
     }
     .app{
       width:min(520px, 100%);
@@ -39,6 +40,8 @@
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       padding:18px;
+      position:relative;
+      z-index:2;
     }
     .top{
       display:flex;
@@ -161,6 +164,11 @@
       color:rgba(201,169,207,.88);
     }
 
+    /* Board wrapper so we can draw a winning line over it */
+    .boardWrap{
+      position:relative;
+    }
+
     .board{
       display:grid;
       grid-template-columns: repeat(3, 1fr);
@@ -183,6 +191,7 @@
       cursor:pointer;
       user-select:none;
       transition: transform .08s ease, border-color .15s ease, box-shadow .15s ease, background .15s ease;
+      position:relative;
     }
     .cell:hover{
       transform: translateY(-1px);
@@ -209,6 +218,34 @@
       transform: translateY(-1px);
     }
 
+    /* Winning line (drawn on top of the board) */
+    .winLine{
+      position:absolute;
+      left:0; top:0;
+      width:100%; height:100%;
+      pointer-events:none;
+      z-index:5;
+    }
+    .winLine::before{
+      content:"";
+      position:absolute;
+      left:var(--x1, 50%);
+      top:var(--y1, 50%);
+      width:var(--len, 0px);
+      height:8px;
+      border-radius:999px;
+      background: linear-gradient(90deg, rgba(255,122,200,.95), rgba(169,123,255,.95));
+      box-shadow: 0 0 22px rgba(255,122,200,.25), 0 0 22px rgba(169,123,255,.18);
+      transform-origin: 0 50%;
+      transform: translateY(-50%) rotate(var(--ang, 0deg));
+      opacity:0;
+      animation: lineIn .25s ease forwards;
+    }
+    @keyframes lineIn{
+      from{ opacity:0; filter: blur(2px); }
+      to{ opacity:1; filter: blur(0px); }
+    }
+
     .footer{
       margin-top:12px;
       display:flex;
@@ -225,9 +262,21 @@
       font-weight:700;
       color:rgba(246,233,245,.88);
     }
+
+    /* Confetti canvas sits over everything */
+    #confetti{
+      position:fixed;
+      inset:0;
+      width:100%;
+      height:100%;
+      pointer-events:none;
+      z-index:10;
+    }
   </style>
 </head>
 <body>
+  <canvas id="confetti"></canvas>
+
   <div class="app">
     <div class="top">
       <h1><span class="dot"></span> Tic Tac Toe</h1>
@@ -253,16 +302,19 @@
       </div>
     </div>
 
-    <div class="board" id="board" aria-label="Tic tac toe board">
-      <div class="cell" data-i="0" aria-label="cell 1"></div>
-      <div class="cell" data-i="1" aria-label="cell 2"></div>
-      <div class="cell" data-i="2" aria-label="cell 3"></div>
-      <div class="cell" data-i="3" aria-label="cell 4"></div>
-      <div class="cell" data-i="4" aria-label="cell 5"></div>
-      <div class="cell" data-i="5" aria-label="cell 6"></div>
-      <div class="cell" data-i="6" aria-label="cell 7"></div>
-      <div class="cell" data-i="7" aria-label="cell 8"></div>
-      <div class="cell" data-i="8" aria-label="cell 9"></div>
+    <div class="boardWrap" id="boardWrap">
+      <div class="board" id="board" aria-label="Tic tac toe board">
+        <div class="cell" data-i="0" aria-label="cell 1"></div>
+        <div class="cell" data-i="1" aria-label="cell 2"></div>
+        <div class="cell" data-i="2" aria-label="cell 3"></div>
+        <div class="cell" data-i="3" aria-label="cell 4"></div>
+        <div class="cell" data-i="4" aria-label="cell 5"></div>
+        <div class="cell" data-i="5" aria-label="cell 6"></div>
+        <div class="cell" data-i="6" aria-label="cell 7"></div>
+        <div class="cell" data-i="7" aria-label="cell 8"></div>
+        <div class="cell" data-i="8" aria-label="cell 9"></div>
+      </div>
+      <div class="winLine" id="winLine" style="display:none;"></div>
     </div>
 
     <div class="footer">
@@ -280,6 +332,9 @@
     const oBtn = document.getElementById("oBtn");
     const resetBtn = document.getElementById("resetBtn");
     const autoToggle = document.getElementById("autoToggle");
+
+    const boardWrap = document.getElementById("boardWrap");
+    const winLineEl = document.getElementById("winLine");
 
     let board = Array(9).fill(null);
     let currentPlayer = "X";
@@ -319,6 +374,45 @@
       return null;
     }
 
+    function clearWinLine() {
+      winLineEl.style.display = "none";
+      winLineEl.style.setProperty("--x1", "50%");
+      winLineEl.style.setProperty("--y1", "50%");
+      winLineEl.style.setProperty("--ang", "0deg");
+      winLineEl.style.setProperty("--len", "0px");
+    }
+
+    function drawWinLine(line) {
+      // Convert winning cell centers into a line drawn over the board.
+      // We use the first and last index of the winning triplet.
+      const a = line[0];
+      const c = line[2];
+
+      const wrapRect = boardWrap.getBoundingClientRect();
+      const aRect = cells[a].getBoundingClientRect();
+      const cRect = cells[c].getBoundingClientRect();
+
+      const ax = (aRect.left + aRect.right) / 2 - wrapRect.left;
+      const ay = (aRect.top + aRect.bottom) / 2 - wrapRect.top;
+      const cx = (cRect.left + cRect.right) / 2 - wrapRect.left;
+      const cy = (cRect.top + cRect.bottom) / 2 - wrapRect.top;
+
+      const dx = cx - ax;
+      const dy = cy - ay;
+      const len = Math.hypot(dx, dy);
+      const ang = Math.atan2(dy, dx) * (180 / Math.PI);
+
+      // Slightly extend beyond centers so it looks like it "cuts through" the symbols.
+      const pad = 18;
+      const lenPadded = len + pad;
+
+      winLineEl.style.display = "block";
+      winLineEl.style.setProperty("--x1", `${ax}px`);
+      winLineEl.style.setProperty("--y1", `${ay}px`);
+      winLineEl.style.setProperty("--ang", `${ang}deg`);
+      winLineEl.style.setProperty("--len", `${lenPadded}px`);
+    }
+
     function render() {
       cells.forEach((cell, i) => {
         const val = board[i];
@@ -329,17 +423,23 @@
         cell.classList.remove("win");
       });
 
+      clearWinLine();
+
       const result = checkWinner();
       if (result?.winner === "X" || result?.winner === "O") {
         gameOver = true;
         statusEl.innerHTML = `Winner: <strong style="color:${result.winner==="X" ? "var(--green)" : "var(--red)"}">${result.winner}</strong>`;
         result.line.forEach(i => cells[i].classList.add("win"));
+        drawWinLine(result.line);
+        startConfetti(); // 🎉
       } else if (result?.winner === "DRAW") {
         gameOver = true;
         statusEl.innerHTML = `Result: <strong>Draw</strong>`;
+        stopConfetti();
       } else {
         gameOver = false;
         statusEl.innerHTML = `Turn: <strong id="turnLabel">${currentPlayer}</strong>`;
+        stopConfetti();
       }
 
       setTurnText();
@@ -362,6 +462,8 @@
       board = Array(9).fill(null);
       currentPlayer = "X";
       gameOver = false;
+      clearWinLine();
+      stopConfetti();
       render();
     }
 
@@ -394,6 +496,117 @@
     window.addEventListener("keydown", (e) => {
       if (e.key.toLowerCase() === "r") reset();
     });
+
+    // -------- Confetti (no libraries) --------
+    const confettiCanvas = document.getElementById("confetti");
+    const ctx = confettiCanvas.getContext("2d", { alpha: true });
+
+    let confettiPieces = [];
+    let confettiRunning = false;
+    let rafId = null;
+    let stopAt = 0;
+
+    function resizeConfetti() {
+      confettiCanvas.width = window.innerWidth * devicePixelRatio;
+      confettiCanvas.height = window.innerHeight * devicePixelRatio;
+      confettiCanvas.style.width = window.innerWidth + "px";
+      confettiCanvas.style.height = window.innerHeight + "px";
+      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    }
+    window.addEventListener("resize", () => {
+      resizeConfetti();
+    });
+    resizeConfetti();
+
+    function rand(min, max){ return Math.random() * (max - min) + min; }
+    function pick(arr){ return arr[(Math.random()*arr.length)|0]; }
+
+    function spawnConfettiBurst(count=160){
+      const w = window.innerWidth;
+      const colors = [
+        "rgba(255,122,200,.95)", // pink
+        "rgba(169,123,255,.95)", // purple
+        "rgba(246,233,245,.90)"  // soft white
+      ];
+
+      for (let i=0;i<count;i++){
+        confettiPieces.push({
+          x: rand(w*0.15, w*0.85),
+          y: rand(-40, -10),
+          vx: rand(-2.2, 2.2),
+          vy: rand(2.5, 6.5),
+          w: rand(6, 11),
+          h: rand(10, 18),
+          rot: rand(0, Math.PI * 2),
+          vr: rand(-0.15, 0.15),
+          color: pick(colors),
+          life: rand(140, 220)
+        });
+      }
+    }
+
+    function startConfetti(){
+      // Start for ~2.2 seconds, then fade out naturally
+      stopAt = performance.now() + 2200;
+      if (!confettiRunning){
+        confettiRunning = true;
+        spawnConfettiBurst(180);
+        loopConfetti();
+      } else {
+        // already running: just add more
+        spawnConfettiBurst(120);
+      }
+    }
+
+    function stopConfetti(){
+      // Clear immediately
+      confettiPieces = [];
+      confettiRunning = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = null;
+      ctx.clearRect(0,0,window.innerWidth, window.innerHeight);
+    }
+
+    function loopConfetti(){
+      rafId = requestAnimationFrame(loopConfetti);
+
+      const now = performance.now();
+      ctx.clearRect(0,0,window.innerWidth, window.innerHeight);
+
+      // If time expired, don't spawn more; let remaining fall out
+      if (now < stopAt && confettiPieces.length < 260) {
+        // small trickle while celebrating
+        if (Math.random() < 0.25) spawnConfettiBurst(12);
+      }
+
+      const g = 0.06;
+      confettiPieces.forEach(p => {
+        p.vy += g;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rot += p.vr;
+        p.life -= 1;
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+        ctx.restore();
+      });
+
+      // Remove dead/out-of-screen pieces
+      confettiPieces = confettiPieces.filter(p => p.life > 0 && p.y < window.innerHeight + 60);
+
+      // End when nothing left and timer passed
+      if (now > stopAt && confettiPieces.length === 0) {
+        confettiRunning = false;
+        cancelAnimationFrame(rafId);
+        rafId = null;
+        ctx.clearRect(0,0,window.innerWidth, window.innerHeight);
+      }
+    }
+    // -------- End confetti --------
 
     // init
     render();
