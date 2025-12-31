@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tic Tac Toe (Green & Red)</title>
+  <style>
+    :root{
+      --bg:#0b0f0c;
+      --panel:#0f1712;
+      --grid:#1b2a20;
+      --green:#30ff7a;
+      --red:#ff3b3b;
+      --text:#e9f6ee;
+      --muted:#9bb7a5;
+      --shadow: 0 10px 30px rgba(0,0,0,.45);
+      --radius: 16px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background: radial-gradient(1200px 700px at 20% 10%, rgba(48,255,122,.08), transparent 55%),
+                  radial-gradient(1000px 700px at 80% 90%, rgba(255,59,59,.08), transparent 55%),
+                  var(--bg);
+      color:var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      padding:24px;
+    }
+    .app{
+      width:min(520px, 100%);
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding:18px;
+    }
+    .top{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:wrap;
+      margin-bottom:14px;
+    }
+    h1{
+      margin:0;
+      font-size:18px;
+      letter-spacing:.3px;
+      font-weight:800;
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    .dot{
+      width:10px;height:10px;border-radius:50%;
+      background: linear-gradient(90deg, var(--green), var(--red));
+      box-shadow: 0 0 18px rgba(48,255,122,.35), 0 0 18px rgba(255,59,59,.25);
+    }
+
+    .status{
+      flex:1;
+      min-width:220px;
+      text-align:right;
+      color:var(--muted);
+      font-weight:650;
+      letter-spacing:.2px;
+    }
+    .status strong{color:var(--text)}
+    .controls{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin: 12px 0 16px;
+      background: rgba(0,0,0,.18);
+      border:1px solid rgba(255,255,255,.07);
+      border-radius: 14px;
+      padding: 10px;
+    }
+    .btn{
+      appearance:none;
+      border:1px solid rgba(255,255,255,.1);
+      background: rgba(255,255,255,.04);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius: 12px;
+      cursor:pointer;
+      font-weight:800;
+      letter-spacing:.2px;
+      transition: transform .08s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
+      user-select:none;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+    }
+    .btn:active{transform: translateY(1px) scale(.99)}
+    .btn:hover{background: rgba(255,255,255,.06)}
+    .btn.green{
+      border-color: rgba(48,255,122,.35);
+      box-shadow: 0 0 0 0 rgba(48,255,122,0);
+    }
+    .btn.red{
+      border-color: rgba(255,59,59,.35);
+      box-shadow: 0 0 0 0 rgba(255,59,59,0);
+    }
+    .btn.reset{
+      margin-left:auto;
+      border-color: rgba(255,255,255,.18);
+    }
+    .btn.active.green{
+      background: rgba(48,255,122,.12);
+      box-shadow: 0 0 22px rgba(48,255,122,.18);
+    }
+    .btn.active.red{
+      background: rgba(255,59,59,.12);
+      box-shadow: 0 0 22px rgba(255,59,59,.18);
+    }
+    .toggleRow{
+      width:100%;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      color:var(--muted);
+      font-weight:650;
+      padding-top:6px;
+      border-top:1px dashed rgba(255,255,255,.10);
+    }
+    .switch{
+      display:flex; align-items:center; gap:10px;
+    }
+    .switch input{
+      width:46px; height:26px; appearance:none;
+      background: rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius: 999px;
+      position:relative;
+      cursor:pointer;
+      outline:none;
+      transition: background .15s ease, border-color .15s ease;
+    }
+    .switch input::after{
+      content:"";
+      width:20px;height:20px;border-radius:50%;
+      background: rgba(255,255,255,.85);
+      position:absolute; top:2px; left:2px;
+      transition: transform .15s ease;
+    }
+    .switch input:checked{
+      background: rgba(48,255,122,.14);
+      border-color: rgba(48,255,122,.35);
+    }
+    .switch input:checked::after{transform: translateX(20px)}
+    .hint{
+      font-size:12px;
+      color:rgba(155,183,165,.85);
+    }
+
+    .board{
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap:10px;
+      background: rgba(0,0,0,.14);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: 18px;
+      padding: 12px;
+    }
+    .cell{
+      aspect-ratio: 1 / 1;
+      border-radius: 16px;
+      border:1px solid rgba(255,255,255,.08);
+      background: radial-gradient(180px 180px at 30% 20%, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size: clamp(44px, 10vw, 72px);
+      font-weight: 950;
+      cursor:pointer;
+      user-select:none;
+      transition: transform .08s ease, border-color .15s ease, box-shadow .15s ease, background .15s ease;
+    }
+    .cell:hover{
+      transform: translateY(-1px);
+      border-color: rgba(255,255,255,.14);
+      box-shadow: 0 10px 22px rgba(0,0,0,.25);
+    }
+    .cell:active{transform: translateY(0px) scale(.99)}
+    .cell.filled{cursor: not-allowed; opacity:.95}
+    .cell.x{ color: var(--green); text-shadow: 0 0 22px rgba(48,255,122,.25); }
+    .cell.o{ color: var(--red);   text-shadow: 0 0 22px rgba(255,59,59,.22); }
+
+    .cell.win{
+      border-color: rgba(255,255,255,.22);
+      background: radial-gradient(240px 240px at 30% 20%, rgba(255,255,255,.10), rgba(255,255,255,.03));
+      box-shadow: 0 0 26px rgba(255,255,255,.10);
+      transform: translateY(-1px);
+    }
+
+    .footer{
+      margin-top:12px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      color:rgba(155,183,165,.75);
+      font-size:12px;
+    }
+    .kbd{
+      border:1px solid rgba(255,255,255,.12);
+      padding:2px 6px;
+      border-radius:8px;
+      background: rgba(255,255,255,.04);
+      font-weight:700;
+      color:rgba(233,246,238,.85);
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="top">
+      <h1><span class="dot"></span> Tic Tac Toe</h1>
+      <div class="status" id="status">
+        Turn: <strong id="turnLabel">X</strong>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn green" id="xBtn" type="button">Play X</button>
+      <button class="btn red" id="oBtn" type="button">Play O</button>
+
+      <button class="btn reset" id="resetBtn" type="button">Reset</button>
+
+      <div class="toggleRow">
+        <div class="switch">
+          <label for="autoToggle">Auto-toggle players</label>
+          <input id="autoToggle" type="checkbox" checked />
+        </div>
+        <div class="hint">
+          ON = swaps X↔O after each move. OFF = click <span class="kbd">Play X</span>/<span class="kbd">Play O</span> before placing.
+        </div>
+      </div>
+    </div>
+
+    <div class="board" id="board" aria-label="Tic tac toe board">
+      <div class="cell" data-i="0" aria-label="cell 1"></div>
+      <div class="cell" data-i="1" aria-label="cell 2"></div>
+      <div class="cell" data-i="2" aria-label="cell 3"></div>
+      <div class="cell" data-i="3" aria-label="cell 4"></div>
+      <div class="cell" data-i="4" aria-label="cell 5"></div>
+      <div class="cell" data-i="5" aria-label="cell 6"></div>
+      <div class="cell" data-i="6" aria-label="cell 7"></div>
+      <div class="cell" data-i="7" aria-label="cell 8"></div>
+      <div class="cell" data-i="8" aria-label="cell 9"></div>
+    </div>
+
+    <div class="footer">
+      <div>Green = X • Red = O</div>
+      <div>Tip: Reset anytime</div>
+    </div>
+  </div>
+
+  <script>
+    const cells = Array.from(document.querySelectorAll(".cell"));
+    const statusEl = document.getElementById("status");
+    const turnLabel = document.getElementById("turnLabel");
+
+    const xBtn = document.getElementById("xBtn");
+    const oBtn = document.getElementById("oBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const autoToggle = document.getElementById("autoToggle");
+
+    let board = Array(9).fill(null);
+    let currentPlayer = "X";
+    let gameOver = false;
+
+    const wins = [
+      [0,1,2],[3,4,5],[6,7,8], // rows
+      [0,3,6],[1,4,7],[2,5,8], // cols
+      [0,4,8],[2,4,6]          // diags
+    ];
+
+    function setActiveButtons() {
+      // Only show active state when auto-toggle is OFF (manual mode)
+      const manual = !autoToggle.checked;
+      xBtn.classList.toggle("active", manual && currentPlayer === "X");
+      oBtn.classList.toggle("active", manual && currentPlayer === "O");
+    }
+
+    function setTurnText() {
+      turnLabel.textContent = currentPlayer;
+      turnLabel.style.color = currentPlayer === "X" ? "var(--green)" : "var(--red)";
+      setActiveButtons();
+    }
+
+    function checkWinner() {
+      for (const line of wins) {
+        const [a,b,c] = line;
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+          return { winner: board[a], line };
+        }
+      }
+      if (board.every(v => v)) return { winner: "DRAW", line: null };
+      return null;
+    }
+
+    function render() {
+      cells.forEach((cell, i) => {
+        const val = board[i];
+        cell.textContent = val ? val : "";
+        cell.classList.toggle("filled", !!val);
+        cell.classList.toggle("x", val === "X");
+        cell.classList.toggle("o", val === "O");
+        cell.classList.remove("win");
+      });
+
+      const result = checkWinner();
+      if (result?.winner === "X" || result?.winner === "O") {
+        gameOver = true;
+        statusEl.innerHTML = `Winner: <strong style="color:${result.winner==="X" ? "var(--green)" : "var(--red)"}">${result.winner}</strong>`;
+        result.line.forEach(i => cells[i].classList.add("win"));
+      } else if (result?.winner === "DRAW") {
+        gameOver = true;
+        statusEl.innerHTML = `Result: <strong>Draw</strong>`;
+      } else {
+        gameOver = false;
+        statusEl.innerHTML = `Turn: <strong id="turnLabel">${currentPlayer}</strong>`;
+        // re-bind turnLabel reference after innerHTML swap
+        // (simple + safe for this small app)
+        setTimeout(() => {
+          const tl = document.getElementById("turnLabel");
+          if (tl) {
+            tl.textContent = currentPlayer;
+            tl.style.color = currentPlayer === "X" ? "var(--green)" : "var(--red)";
+          }
+        }, 0);
+      }
+
+      setTurnText();
+    }
+
+    function place(index) {
+      if (gameOver) return;
+      if (board[index]) return;
+
+      board[index] = currentPlayer;
+
+      const result = checkWinner();
+      if (!result && autoToggle.checked) {
+        currentPlayer = currentPlayer === "X" ? "O" : "X";
+      }
+      render();
+    }
+
+    function reset() {
+      board = Array(9).fill(null);
+      currentPlayer = "X";
+      gameOver = false;
+      setTurnText();
+      render();
+    }
+
+    // Cell clicks
+    cells.forEach(cell => {
+      cell.addEventListener("click", () => {
+        const i = Number(cell.dataset.i);
+        place(i);
+      });
+    });
+
+    // Manual player buttons (useful when auto-toggle OFF)
+    xBtn.addEventListener("click", () => {
+      currentPlayer = "X";
+      setTurnText();
+      render();
+    });
+
+    oBtn.addEventListener("click", () => {
+      currentPlayer = "O";
+      setTurnText();
+      render();
+    });
+
+    autoToggle.addEventListener("change", () => {
+      setActiveButtons();
+    });
+
+    resetBtn.addEventListener("click", reset);
+
+    // Keyboard: R to reset
+    window.addEventListener("keydown", (e) => {
+      if (e.key.toLowerCase() === "r") reset();
+    });
+
+    // init
+    setTurnText();
+    render();
+  </script>
+</body>
+</html>
